@@ -13,113 +13,296 @@ document.body.appendChild(canvas);
 // Background image
 var bgReady = false;
 var bgImage = new Image();
-bgImage.onload = function () {
-	bgReady = true;
+bgImage.onload = function() {
+    bgReady = true;
 };
 bgImage.src = "images/background.png";
 
 // Hero image
 var heroReady = false;
 var heroImage = new Image();
-heroImage.onload = function () {
-	heroReady = true;
+heroImage.onload = function() {
+    heroReady = true;
 };
 heroImage.src = "images/hero.png";
 
 // princess image
 var princessReady = false;
 var princessImage = new Image();
-princessImage.onload = function () {
-	princessReady = true;
+princessImage.onload = function() {
+    princessReady = true;
 };
 princessImage.src = "images/princess.png";
 
+// stone image
+var stoneReady = false;
+var stoneImage = new Image();
+stoneImage.onload = function() {
+    stoneReady = true;
+};
+stoneImage.src = "images/stone.png";
+
+// monster image
+var monsterReady = false;
+var monsterImage = new Image();
+monsterImage.onload = function() {
+    monsterReady = true;
+};
+monsterImage.src = "images/monster.png";
+
 // Game objects
 var hero = {
-	speed: 256 // movement in pixels per second
+    speed: 256 // movement in pixels per second
 };
 var princess = {};
 var princessesCaught = 0;
-
+var map;
+var ELEMENT_SIZE = 32;
+var rows = canvas.height / ELEMENT_SIZE;
+var cols = canvas.width / ELEMENT_SIZE;
+var numStones = 2;
+var stones = [];
+var numMonsters = 1;
+var monsters = [];
+var monsterSpeedFactor = 20;
+var monsterSpeed = Math.round(hero.speed / monsterSpeedFactor);
+var allElements = [];
+var level = 1;
 // Handle keyboard controls
 var keysDown = {};
 
-addEventListener("keydown", function (e) {
-	keysDown[e.keyCode] = true;
+addEventListener("keydown", function(e) {
+    keysDown[e.keyCode] = true;
 }, false);
 
-addEventListener("keyup", function (e) {
-	delete keysDown[e.keyCode];
+addEventListener("keyup", function(e) {
+    delete keysDown[e.keyCode];
 }, false);
 
 // Reset the game when the player catches a princess
-var reset = function () {
-	hero.x = canvas.width / 2;
-	hero.y = canvas.height / 2;
+var reset = function() {
+    if (princessesCaught !== 0 && (princessesCaught % 10 === 0)) {
+        levelUp();
+    }
 
-	// Throw the princess somewhere on the screen randomly
-	princess.x = 32 + (Math.random() * (canvas.width - 64));
-	princess.y = 32 + (Math.random() * (canvas.height - 64));
+    map = newMap();
+
+    hero.x = canvas.width / 2;
+    hero.y = canvas.height / 2;
+
+    // Throw the princess somewhere on the screen randomly
+    princess.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
+    princess.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
+
+    addStones(numStones);
+    addMonsters(numMonsters);
 };
 
+function levelUp() {
+    level++;
+    numMonsters += 1;
+    monsterSpeedFactor -= 2;
+    numStones +=1;
+}
+
+function gameOver() {
+    level = 1;
+    numMonsters = 1;
+    monsterSpeedFactor = 20;
+    numStones = 2;
+    princessesCaught = 0;
+}
+
+function newMap() {
+    var m = new Array(rows);
+    for (var i = 0; i < rows; i++) {
+        m[i] = new Array(cols);
+        for (var j = 0; j < cols; j++) {
+            if (i > 0 && i < rows - 1 && j > 0 && j < cols - 1) {
+                m[i][j] = true;
+            }
+        }
+    }
+    return m;
+}
+
+function inField(elem) {
+    return elem.y >= ELEMENT_SIZE &&
+        elem.y <= (canvas.height - ELEMENT_SIZE * 2) &&
+        elem.x >= ELEMENT_SIZE &&
+        elem.x <= (canvas.width - ELEMENT_SIZE * 2);
+}
+
+function conv(n) {
+    return Math.floor(n / ELEMENT_SIZE);
+}
+
+function isPosEmpty(elem) {
+    return map[conv(elem.x)][conv(elem.y)];
+}
+
+function setPos(elem) {
+    map[conv(elem.x)][conv(elem.y)] = false;
+}
+
+function notCharacter(elem) {
+    return conv(elem.x) !== conv(hero.x) &&
+        conv(elem.y) !== conv(hero.y) &&
+        conv(elem.x) !== conv(princess.x) &&
+        conv(elem.y) !== conv(princess.y);
+}
+
+function normalize(n) {
+    return ELEMENT_SIZE * conv(n) + ELEMENT_SIZE / 2;
+}
+
+function addStones(num) {
+    var elem = {};
+    for (var i = 0; i < num; i++) {
+        do {
+            elem.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
+            elem.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
+        } while (!isPosEmpty(elem) && notCharacter(elem) && inField(elem));
+
+        stones[i] = {
+            x: normalize(elem.x),
+            y: normalize(elem.y)
+        };
+
+        setPos(stones[i]);
+    }
+}
+
+function addMonsters(num) {
+    var elem = {};
+    for (var i = 0; i < num; i++) {
+        do {
+            elem.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
+            elem.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
+        } while (!isPosEmpty(elem) && notCharacter(elem) && inField(elem));
+
+        monsters[i] = {
+            x: normalize(elem.x),
+            y: normalize(elem.y),
+            speed: monsterSpeed
+        };
+    }
+}
 // Update game objects
-var update = function (modifier) {
-	if (38 in keysDown) { // Player holding up
-		hero.y -= hero.speed * modifier;
-	}
-	if (40 in keysDown) { // Player holding down
-		hero.y += hero.speed * modifier;
-	}
-	if (37 in keysDown) { // Player holding left
-		hero.x -= hero.speed * modifier;
-	}
-	if (39 in keysDown) { // Player holding right
-		hero.x += hero.speed * modifier;
-	}
+var update = function(modifier) {
+    var next = {};
+    next.x = hero.x;
+    next.y = hero.y;
+    if (38 in keysDown) { // Player holding up
+        //hero.y -= hero.speed * modifier;
+        next.y -= hero.speed * modifier;
+    }
+    if (40 in keysDown) { // Player holding down
+        //hero.y += hero.speed * modifier;
+        next.y += hero.speed * modifier;
+    }
+    if (37 in keysDown) { // Player holding left
+        //hero.x -= hero.speed * modifier;
+        next.x -= hero.speed * modifier;
+    }
+    if (39 in keysDown) { // Player holding right
+        //hero.x += hero.speed * modifier;
+        next.x += hero.speed * modifier;
+    }
 
-	// Are they touching?
-	if (
-		hero.x <= (princess.x + 16)
-		&& princess.x <= (hero.x + 16)
-		&& hero.y <= (princess.y + 16)
-		&& princess.y <= (hero.y + 32)
-	) {
-		++princessesCaught;
-		reset();
-	}
+    if (inField(next) && isPosEmpty(next)) {
+        hero.x = next.x;
+        hero.y = next.y;
+    }
+
+    // Are they touching?
+    if (isTouching(hero, princess)) {
+        ++princessesCaught;
+        reset();
+    }
+
+    for (var i = 0; i < monsters.length; i++) {
+        var nextMonster = {
+            x: monsters[i].x,
+            y: monsters[i].y
+        };
+
+        if (hero.y < monsters[i].y) {
+            nextMonster.y -= monsters[i].speed * modifier;
+        }
+
+        if (hero.y > monsters[i].y) {
+            nextMonster.y += monsters[i].speed * modifier;
+        }
+
+        if (hero.x < monsters[i].x) {
+            nextMonster.x -= monsters[i].speed * modifier;
+        }
+
+        if (hero.x > monsters[i].x) {
+            nextMonster.x += monsters[i].speed * modifier;
+        }
+
+        if (inField(nextMonster) && isPosEmpty(nextMonster)) {
+            monsters[i].x = nextMonster.x;
+            monsters[i].y = nextMonster.y;
+        }
+
+        if (isTouching(hero, monsters[i])) {
+            gameOver();
+            reset();
+        }
+    }
 };
 
+function isTouching(elem, another) {
+    return elem.x <= (another.x + ELEMENT_SIZE) &&
+        another.x <= (elem.x + ELEMENT_SIZE) &&
+        elem.y <= (another.y + ELEMENT_SIZE) &&
+        another.y <= (elem.y + ELEMENT_SIZE);
+}
 // Draw everything
-var render = function () {
-	if (bgReady) {
-		ctx.drawImage(bgImage, 0, 0);
-	}
+var render = function() {
+    if (bgReady) {
+        ctx.drawImage(bgImage, 0, 0);
+    }
 
-	if (heroReady) {
-		ctx.drawImage(heroImage, hero.x, hero.y);
-	}
+    if (heroReady) {
+        ctx.drawImage(heroImage, hero.x, hero.y);
+    }
 
-	if (princessReady) {
-		ctx.drawImage(princessImage, princess.x, princess.y);
-	}
+    if (princessReady) {
+        ctx.drawImage(princessImage, princess.x, princess.y);
+    }
 
-	// Score
-	ctx.fillStyle = "rgb(250, 250, 250)";
-	ctx.font = "24px Helvetica";
-	ctx.textAlign = "left";
-	ctx.textBaseline = "top";
-	ctx.fillText("Princesses caught: " + princessesCaught, 32, 32);
+    if (stoneReady) {
+        for (var i = 0; i < stones.length; i++) {
+            ctx.drawImage(stoneImage, stones[i].x, stones[i].y);
+        }
+    }
+
+    if (monsterReady) {
+        for (var j = 0; j < monsters.length; j++) {
+            ctx.drawImage(monsterImage, monsters[j].x, monsters[j].y);
+        }
+    }
+    // Score
+    ctx.fillStyle = "rgb(250, 250, 250)";
+    ctx.font = "24px Helvetica";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("Princesses caught: " + princessesCaught + " Level: " + level, 32, 32);
 };
 
 // The main game loop
-var main = function () {
-	var now = Date.now();
-	var delta = now - then;
+var main = function() {
+    var now = Date.now();
+    var delta = now - then;
 
-	update(delta / 1000);
-	render();
+    update(delta / 1000);
+    render();
 
-	then = now;
+    then = now;
 };
 
 // Let's play this game!
