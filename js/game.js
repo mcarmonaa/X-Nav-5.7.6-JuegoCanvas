@@ -94,8 +94,8 @@ var reset = function() {
     princess.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
     princess.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
 
-    addStones(numStones);
-    addMonsters(numMonsters);
+    stones = addStones(numStones);
+    monsters =addMonsters(numMonsters);
 };
 
 function levelUp() {
@@ -158,35 +158,39 @@ function normalize(n) {
 
 function addStones(num) {
     var elem = {};
+    var s = [];
     for (var i = 0; i < num; i++) {
         do {
             elem.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
             elem.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
         } while (!isPosEmpty(elem) && notCharacter(elem) && inField(elem));
 
-        stones[i] = {
+        s[i] = {
             x: normalize(elem.x),
             y: normalize(elem.y)
         };
 
-        setPos(stones[i]);
+        setPos(s[i]);
     }
+    return s;
 }
 
 function addMonsters(num) {
     var elem = {};
+    var m = [];
     for (var i = 0; i < num; i++) {
         do {
             elem.x = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.width - ELEMENT_SIZE * 3)));
             elem.y = Math.round(ELEMENT_SIZE + (Math.random() * (canvas.height - ELEMENT_SIZE * 3)));
         } while (!isPosEmpty(elem) && notCharacter(elem) && inField(elem));
 
-        monsters[i] = {
+        m[i] = {
             x: normalize(elem.x),
             y: normalize(elem.y),
             speed: monsterSpeed
         };
     }
+    return m;
 }
 // Update game objects
 var update = function(modifier) {
